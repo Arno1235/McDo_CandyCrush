@@ -1,7 +1,5 @@
-import pretty_errors
-
 import numpy as np
-from PIL import Image, ImageGrab
+from PIL import ImageGrab
 import cv2
 
 import copy
@@ -10,48 +8,18 @@ import pyautogui
 import time
 
 
-def save_element(main_screen, element_width, element_height):
-
-    x, y = 3, 3
-
-    el = get_element(main_screen, element_width, element_height, x, y)
-
-    cv2.imwrite("el5.png", el)
-
-    import sys
-    sys.exit()
-
-
-def get_element(main_screen, element_width, element_height, x, y):
-    el = main_screen[y * element_height:(y + 1) * element_height,
-                     x * element_width:(x + 1) * element_width]
-    # cv2.imshow("frame", el)
-    # cv2.waitKey(0)
-    return el
-
-
 class Image_Matcher:
 
     def __init__(self):
 
         images = ["./elements/el1.png", "./elements/el2.png",
                   "./elements/el3.png", "./elements/el4.png", "./elements/el5.png"]
+
         self.all_features = np.zeros(shape=(len(images), 3))
-        # self.star_features = np.zeros(shape=(len(images)+1, 3))
 
         for i in range(len(images)):
             feature = self.extract(img=cv2.imread(images[i]))
             self.all_features[i] = np.array(feature)
-
-        # for i in range(len(images)):
-        #     self.match_star(img=cv2.imread(images[i]))
-
-        # star = "./elements/el6.png"
-
-        # self.match_star(img=cv2.imread(star))
-
-        # import sys
-        # sys.exit(0)
 
     def extract(self, img):
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -79,14 +47,8 @@ class Image_Matcher:
 
         mask_green = cv2.inRange(hsv, lower_green, upper_green)
 
-        cv2.imshow("test", mask_green)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
         ret = np.count_nonzero(mask_green) / \
             (mask_green.shape[0] * mask_green.shape[1])
-
-        print(ret)
 
         return ret
 
@@ -98,48 +60,45 @@ class Image_Matcher:
 
         mask_green = cv2.inRange(hsv, lower_green, upper_green)
 
-        # cv2.imshow("test", mask_green)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        _, thresh = cv2.threshold(mask_green, 127, 255, 1)
 
-        ret, thresh = cv2.threshold(mask_green, 127, 255, 1)
-
-        contours, h = cv2.findContours(thresh, 1, 2)
+        contours, _ = cv2.findContours(thresh, 1, 2)
 
         for cnt in contours:
             approx = cv2.approxPolyDP(cnt, 0.02*cv2.arcLength(cnt, True), True)
-            # print(len(approx))
 
         circles = cv2.HoughCircles(
             mask_green, cv2.HOUGH_GRADIENT, 1, 100, param1=30, param2=10, minRadius=20, maxRadius=120)
 
-        # if circles is None:
-        #     print("None")
-        # else:
-        #     print(len(circles))
-
-        # if circles is None:
-        #     print(len(contours))
-        #     print(len(approx))
-        #     print(circles is None)
-
-        # print(len(contours) == 1 and len(approx) == 10 and circles is None)
-
         return len(contours) == 1 and len(approx) == 10 and circles is None
-        # return circles is None
 
     def match(self, img):
 
         if self.match_star(img):
             return 10
 
-        # Match image
-        query = self.extract(img=img)  # Extract its features
-        # Calculate the similarity (distance) between images
-        dists = np.linalg.norm(self.all_features - query, axis=1)
-        # Extract 5 images that have lowest distance
-        ids = np.argsort(dists)[0]
-        return ids
+        features = self.extract(img=img)
+        dists = np.linalg.norm(self.all_features - features, axis=1)
+        id = np.argsort(dists)[0]
+        return id
+
+
+def save_element(main_screen, element_width, element_height):
+
+    x, y = 3, 3
+
+    el = get_element(main_screen, element_width, element_height, x, y)
+
+    cv2.imwrite("el5.png", el)
+
+    import sys
+    sys.exit()
+
+
+def get_element(main_screen, element_width, element_height, x, y):
+    el = main_screen[y * element_height:(y + 1) * element_height,
+                     x * element_width:(x + 1) * element_width]
+    return el
 
 
 def load_grid(main_screen, grid_size, element_width, element_height):
@@ -154,20 +113,17 @@ def load_grid(main_screen, grid_size, element_width, element_height):
             tile = imgMatch.match(el)
             row.append(tile)
 
-            # cv2.imshow(str(tile), el)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
         grid.append(row)
 
     return grid
 
-# TODO: Check for star if other star is in the same file
-# TODO: Before star check to create other star (should know amount of moves left)
-# TODO: Move star towards middle
-
 
 def calculate_best_move(grid):
+
+    # TODO: Prefer moves towards the middle
+    # TODO: Check for star if other star is in the same file
+    # TODO: Before star check to create other star (should know the amount of moves left)
+    # TODO: Move star towards middle
 
     best_x, best_y = -1, -1
     best_vert = -1
@@ -294,12 +250,9 @@ def print_grid(grid):
 
 
 def take_screenshot(left, top, width, height):
-    img = ImageGrab.grab(bbox=(left, top, width, height))  # x, y, w, h
+    img = ImageGrab.grab(bbox=(left, top, width, height))
     img_np = np.array(img)
     frame = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
-    # cv2.imshow("frame", frame)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
     return frame
 
 
@@ -349,11 +302,6 @@ if __name__ == "__main__":
 
     imgMatch = Image_Matcher()
 
-    # im = cv2.imread('test.png')
-
-    # element_width = 206
-    # left, top = 100, 900
-
     left, top = 65, 670
     width, height = 830, 1450
 
@@ -361,20 +309,6 @@ if __name__ == "__main__":
 
     element_width = round((width - left) / grid_size)
     element_height = round((height - top) / grid_size)
-
-    # main_screen = take_screenshot(left, top, width, height)
-
-    # save_element(main_screen, element_width, element_height)
-
-    # grid = load_grid(main_screen, grid_size, element_width, element_height)
-
-    # print_grid(grid)
-
-    # x, y, vertical, best_score = calculate_best_move(grid)
-
-    # print(x, y, vertical)
-
-    # make_move(x, y, vertical, left, top, element_width, element_height)
 
     while True:
 
@@ -398,5 +332,3 @@ if __name__ == "__main__":
             make_move(x, y, vertical, left, top, element_width, element_height)
 
             time.sleep(5)
-
-# 3579
